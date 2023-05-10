@@ -12,8 +12,8 @@ ui <- dashboardPage(
   dashboardHeader(title="Training Metric Program"),
   dashboardSidebar(
     sidebarMenu(
-      ## 01. DATA PREPARATION
-      menuItem("Data Preparation", tabName = "preps", icon = icon("database"),
+      ## 01. DATA CLEANING
+      menuItem("Data Cleaning", tabName = "preps", icon = icon("database"),
                menuSubItem("Upload Here", tabName="uploadcsv"),
                menuSubItem("Cleaning NA", tabName="cleaning"),
                menuSubItem("Convert Values", tabName="convertVal")),
@@ -21,12 +21,15 @@ ui <- dashboardPage(
       ## 02. DATA VISUALIZAION
       menuItem("Data Visualization", tabName = "vis", icon = icon("line-chart")),
       ## 03. MODEL METRICS
-      menuItem("Model Metrics", tabName = "metrics", icon = icon("dashboard"))
+      menuItem("Model", tabName = "model", icon = icon("dashboard"),
+               menuSubItem("Data Preparation", tabName="modelpreparation"),
+               menuSubItem("Select Model", tabName="selectmodel"),
+               menuSubItem("Model Metrics", tabName="metrics"))
     )
   ),
   dashboardBody(
     tabItems(
-      ## 01. DATA PREPARATION - TAB: UPLOAD CSV
+      ## 01. DATA CLEANING - TAB: UPLOAD CSV
       tabItem(tabName = "uploadcsv",
               sidebarLayout(
                 sidebarPanel(
@@ -44,7 +47,7 @@ ui <- dashboardPage(
                 )
               )
       ),
-      ## 01. DATA PREPARATION - TAB: CLEANING
+      ## 01. DATA CLEANING - TAB: CLEANING
       tabItem(tabName="cleaning",
               sidebarLayout(
                 sidebarPanel(
@@ -61,7 +64,7 @@ ui <- dashboardPage(
                 )
                 
               )),
-      ## 01. DATA PREPARATION - TAB: CONVERT VALUES
+      ## 01. DATA CLEANING - TAB: CONVERT VALUES
       tabItem(tabName="convertVal",
               sidebarLayout(
                 sidebarPanel(
@@ -84,7 +87,39 @@ ui <- dashboardPage(
                   )
                 )
                 
-              ))
+              )),
+      ## 03. MODEL - TAB: DATA PREPARATION
+      tabItem(tabName = "modelpreparation",
+              sidebarLayout(
+                sidebarPanel(
+                  fluidRow(
+                    column(width = 8,
+                           h3("Variable Y"),
+                           selectInput(inputId = "YCol", label = "Choose Your Y Variable", choices = NULL, selected = NULL),
+                           actionButton("PickVarY", "Select Variable Y")
+                    ),
+                    column(width = 8,
+                           h3("Variable X"),
+                           selectInput(inputId = "XCols", label = "Choose your X Variables", choices = NULL, multiple = TRUE),
+                           actionButton("PickVarX", "Select Variables X")
+                    )
+                  ),
+                  fluidRow(
+                    column(width = 8,
+                           h3("Split Ratio"),
+                           selectInput(inputId = "TrainTestSplit", label = "Choose your split ratio", choices = c("70-30", "80-20", "90-10"), selected = "80-20"),
+                           actionButton("TrainTestButton", "Split!")
+                    )
+                  )
+                ),
+                mainPanel(
+                  tabsetPanel(
+                    tabPanel("Formula Summary", verbatimTextOutput("formulasummary"))
+                  )
+                )
+              )
+      )
+      
     )
   ))
 
@@ -228,8 +263,12 @@ server <- function(input, output,session) {
         write.csv(currentCleanedDf, file)
       }
     )
-    
   })
+  # 02. 
+  
+  # 03. MODEL - TAB: DATA PREPARATION
+  
+  
 }
 
 shinyApp(ui, server)
