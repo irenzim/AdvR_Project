@@ -94,15 +94,13 @@ ui <- dashboardPage(
                 sidebarPanel(
                   fluidRow(
                     column(width = 8,
-                           h3("Variable Y"),
+                           h3("Select Variables"),
+                           h4("Variable Y"),
                            selectInput(inputId = "YCol", label = "Choose Your Y Variable", choices = NULL, selected = NULL),
-                           actionButton("PickVarY", "Select Variable Y")
-                    ),
-                    column(width = 8,
-                           h3("Variable X"),
+                           h4("Variable X"),
                            selectInput(inputId = "XCols", label = "Choose your X Variables", choices = NULL, multiple = TRUE),
-                           actionButton("PickVarX", "Select Variables X")
-                    )
+                           actionButton("PickVars", "Select Variables")
+                    ),
                   ),
                   fluidRow(
                     column(width = 8,
@@ -114,7 +112,7 @@ ui <- dashboardPage(
                 ),
                 mainPanel(
                   tabsetPanel(
-                    tabPanel("Formula Summary", verbatimTextOutput("formulasummary"))
+                    tabPanel("Summary", verbatimTextOutput("formulasummary"),verbatimTextOutput("splitratiosummary"))
                   )
                 )
               )
@@ -138,6 +136,7 @@ server <- function(input, output,session) {
       stop("Invalid file format. Please upload a CSV file.")
     }
   })
+  
   observeEvent(input$UploadButton, {
     # TAB 1 : DF.HEAD (5)
     headDf <- reactive({ data() %>% slice(1:5) })
@@ -264,11 +263,97 @@ server <- function(input, output,session) {
       }
     )
   })
-  # 02. 
+  # 02. DATA VISUALIZATION
   
   # 03. MODEL - TAB: DATA PREPARATION
+  currentCleanedDf <- reactiveVal()
+  modelDf <- reactiveVal(NULL)
   
+  observeEvent(cleanedData(), {
+    currentCleanedDf(cleanedData())
+    modelDf(data_cleaned())
+  })
   
+  observeEvent(cleanedData(), {
+    if (!is.null(cleanedData())) {
+      modelDf(cleanedData())
+    } else if (!is.null(updateDf())) {
+      modelDf(updateDf())
+    } else {
+      modelDf(data())
+    }
+  })
+  
+  # Choosing Y Var
+  observe({
+    if(!is.null(cleanedData())) {
+      updateSelectInput(session, "YCol", label="choose your column", choices=names(cleanedData()), selected=names(cleanedData())[1])
+    } else if (!is.null(updateDf())){
+      updateSelectInput(session, "YCol", label="choose your column", choices=names(updateDf()), selected=names(updateDf())[1])
+    } else {
+      updateSelectInput(session, "YCol", label="choose your column", choices=names(data()), selected=names(data())[1])
+    }
+  })
+  # Choosing X Var
+  observe({
+    if(!is.null(cleanedData())) {
+      updateSelectInput(session, "XCols", label="choose your column", choices=names(cleanedData()), selected=names(cleanedData())[1])
+    } else if (!is.null(updateDf())){
+      updateSelectInput(session, "XCols", label="choose your column", choices=names(updateDf()), selected=names(updateDf())[1])
+    } else {
+      updateSelectInput(session, "XCols", label="choose your column", choices=names(data()), selected=names(data())[1])
+    }
+  })
+  
+  formula <- reactiveVal()
+  train_data <- reactiveVal()
+  test_data <- reactiveVal()
+  
+  # Making Formula
+  observeEvent(input$PickVars, {
+    y_var <- input$YCol
+    x_vars <- input$XCols
+    
+    # Create the formula using the selected variables
+    formula_str <- paste(y_var, "~", paste(x_vars, collapse = " + "))
+    
+    # Store the formula
+    formula((formula_str))
+    print(formula)
+    output$formulasummary <- renderPrint({formula_str})
+    
+    
+  })
+  
+  # Split Data
+  observeEvent(input$TrainTestButton, {
+    if (!is.null(cleanedData())) {
+      modelDf <- cleanedData()
+    } else if (!is.null(updateDf())) {
+      modelDf <- updateDf()
+    } else {
+      modelDf <- data()
+    }
+    split_ratio <- as.numeric(strsplit(input$TrainTestSplit, "-")[[1]]) / 100
+    
+    
+    if (input$TrainTestSplit == "70-30") {
+      train <- modelDf[1:round(split_ratio[1] * nrow(modelDf)), ]
+      test <- modelDf[(round(split_ratio[1] * nrow(modelDf)) + 1):nrow(modelDf), ]
+    } else if (input$TrainTestSplit == "80-20") {
+      train <- modelDf[1:round(split_ratio[1] * nrow(modelDf)), ]
+      test <- modelDf[(round(split_ratio[1] * nrow(modelDf)) + 1):nrow(modelDf), ]
+    } else if (input$TrainTestSplit == "90-10") {
+      train <- modelDf[1:round(split_ratio[1] * nrow(modelDf)), ]
+      test <- modelDf[(round(split_ratio[1] * nrow(modelDf)) + 1):nrow(modelDf), ]
+    }
+    train_data(train)
+    test_data(test)
+    output$splitratiosummary <- renderPrint({
+      cat("Train Data Dimensions: ", dim(train)[1], " rows, ", dim(train)[2], " columns\n")
+      cat("Test Data Dimensions: ", dim(test)[1], " rows, ", dim(test)[2], " columns\n")
+    })
+  })
 }
 
 shinyApp(ui, server)
