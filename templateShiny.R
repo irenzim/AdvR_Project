@@ -8,6 +8,8 @@ library(tidyr)
 library(data.table)
 library(DT)
 
+source("trainers_classes.R")
+
 ui <- dashboardPage(
   dashboardHeader(title="Training Metric Program"),
   dashboardSidebar(
@@ -86,7 +88,6 @@ ui <- dashboardPage(
                     tabPanel("Dataframe", DT::dataTableOutput("convertdata"))
                   )
                 )
-                
               )),
       ## 03. MODEL - TAB: DATA PREPARATION
       tabItem(tabName = "modelpreparation",
@@ -116,14 +117,62 @@ ui <- dashboardPage(
                   )
                 )
               )
-      )
-      
+      ),
+      ## 03. MODEL - TAB: SELECT MODEL
+      tabItem(tabName = "selectmodel",
+              sidebarLayout(
+                sidebarPanel(
+                  fluidRow(
+                    column(width = 6,
+                           helpText("Select the type of tree model to use."),
+                           radioButtons("model_type", "Select Tree Model:",
+                                        choices = c("Classification", "Regression"),
+                                        selected = "")
+                    ),
+                    
+                    column(width = 6,
+                           helpText("Ranger = Random Forest, ....."),
+                           radioButtons("trees_method", "Method:",
+                                        choices = c("ranger", "Choice 2", "Choice 3"),
+                                        selected = "")
+                    )
+                  ),
+                  fluidRow(
+                    column(width = 6,
+                           helpText("Input number of trees in the model"),
+                           numericInput("numtrees","Number of Trees", value = 0)
+                    ),
+                    column(width = 6,
+                           helpText("Input number of variables to possibly split in each node"),
+                           numericInput("m_try","Number of Variables to split", value = 0)
+                    )
+                  ),
+                  fluidRow(
+                    column(width = 6,
+                           helpText("Input number of node size"),
+                           numericInput("minnodesize","Nod Size", value = 0)
+                    )
+                  ),
+                  fluidRow(
+                    column(width = 12,
+                           actionButton("seeModelSummary", "See Model Summary")
+                    ))
+                ),
+                mainPanel(
+                  h4("Parameters Summary"),
+                  verbatimTextOutput("summaryParameters"),
+                  h4("Model Summary"),
+                  verbatimTextOutput("summaryModel")
+                )
+              )
+      ),
+      tabItem(tabName= "metrics")
     )
   ))
 
 server <- function(input, output,session) {
   
-  
+  cleanedData <- reactiveVal()
   # 01. DATA PREPARATION - TAB: UPLOAD CSV
   data <- reactive({
     req(input$file)
@@ -136,16 +185,19 @@ server <- function(input, output,session) {
       stop("Invalid file format. Please upload a CSV file.")
     }
   })
+  observeEvent(data(), {
+    cleanedData(data())
+  })
   
   observeEvent(input$UploadButton, {
     # TAB 1 : DF.HEAD (5)
-    headDf <- reactive({ data() %>% slice(1:5) })
+    headDf <- reactive({ cleanedData() %>% slice(1:5) })
     output$data <- DT::renderDataTable({ headDf() %>% datatable(options=list(scrollX=TRUE))})
     # TAB 2 : DF STR
-    summaryDf <- reactive({str(data())})
+    summaryDf <- reactive({str(cleanedData())})
     output$summary <- renderPrint({summaryDf()})
     # TAB 3 : SHOW NA DATA
-    na_counts <- reactive({ colSums(is.na(data())) })
+    na_counts <- reactive({ colSums(is.na(cleanedData())) })
     na_cols <- names(na_counts())[na_counts() > 0]
     na_counts <- na_counts()[na_cols]
     NaDf <- data.frame(ColNames = na_cols, NAs = na_counts)
@@ -154,26 +206,15 @@ server <- function(input, output,session) {
   
   # 01. DATA PREPARATION - TAB: CLEANING NA
   # TAB 1 : DF.HEAD (5)
-  # Initialize reactive value
-  updateDf <- reactiveVal()
-  
   observe({
-    # Update select input when data is uploaded
-    if(!is.null(data())) {
-      updateSelectInput(session, "DfCols", label="choose your column", choices=names(data()), selected=names(data())[1])
-    }
+    updateSelectInput(session, "DfCols", label="choose your column", choices=names(cleanedData()), selected=names(cleanedData())[1])
   })
   
   observeEvent(input$CleanButton, {
     col <- input$DfCols
     how_na <- input$HowNa
     
-    # Get the cleaned data to work with
-    if (is.null(updateDf())) {
-      data_cleaned <- data()
-    } else {
-      data_cleaned <- updateDf()
-    }
+    data_cleaned <- cleanedData()
     
     # Clean data based on user input
     if (how_na == "Omit"){
@@ -187,7 +228,7 @@ server <- function(input, output,session) {
     }
     
     # Update the reactive value with cleaned data
-    updateDf(data_cleaned)
+    cleanedData(data_cleaned)
     
     # Render cleaned data table
     output$ClearedNA <- DT::renderDataTable({data_cleaned %>% slice(1:5)%>% datatable(options=list(scrollX=TRUE))})
@@ -202,42 +243,20 @@ server <- function(input, output,session) {
   })
   
   # 01. DATA PREPARATION - TAB: CONVERT VALUES
-  data_cleaned <- reactiveVal()
-  cleanedData <- reactiveVal(NULL)
-  
-  observeEvent(updateDf(), {
-    data_cleaned(updateDf())
-    cleanedData(data_cleaned())
-  })
-  
   observeEvent(input$ShowCurrentSummary, {
-    # Get the cleaned data to work with
-    if (is.null(updateDf())) {
-      currentCleanedDf <- data()
-    } else {
-      currentCleanedDf <- cleanedData()
-    }
-    output$summaryconverted <- renderPrint({str(currentCleanedDf)})
-    output$convertdata <- DT::renderDataTable({currentCleanedDf %>% slice(1:5)%>% datatable(options=list(scrollX=TRUE))})
+    output$summaryconverted <- renderPrint({str(cleanedData())})
+    output$convertdata <- DT::renderDataTable({cleanedData() %>% slice(1:5)%>% datatable(options=list(scrollX=TRUE))})
   })
   
   observe({
-    # Update select input when data is uploaded
-    if(!is.null(updateDf())) {
-      updateSelectInput(session, "DfColsConvert", label="choose your column", choices=names(updateDf()), selected=names(updateDf())[1])
-    } else {
-      updateSelectInput(session, "DfColsConvert", label="choose your column", choices=names(data()), selected=names(data())[1])
-    }
+    updateSelectInput(session, "DfColsConvert", label="choose your column", choices=names(cleanedData()), selected=names(cleanedData())[1])
   })
+  
   observeEvent(input$ConvertVal, {
     col_convert <- input$DfColsConvert
     how_convert <- input$HowConvert
     
-    if (is.null(updateDf())) {
-      currentCleanedDf <- data()
-    } else {
-      currentCleanedDf <- cleanedData()
-    }
+    currentCleanedDf <- cleanedData()
     
     if (how_convert=="Integer"){
       currentCleanedDf[[col_convert]] <- as.integer(currentCleanedDf[[col_convert]])
@@ -250,10 +269,9 @@ server <- function(input, output,session) {
     } else if (how_convert == "Date") {
       currentCleanedDf[[col_convert]] <- as.Date(currentCleanedDf[[col_convert]],format = "%Y%m%dT%H%M%S")
     }
-    
     cleanedData(currentCleanedDf)
-    output$summaryconverted <- renderPrint({str(currentCleanedDf)})
-    output$convertdata <- DT::renderDataTable({currentCleanedDf %>% slice(1:5)%>% datatable(options=list(scrollX=TRUE))})
+    output$summaryconverted <- renderPrint({str(cleanedData())})
+    output$convertdata <- DT::renderDataTable({cleanedData() %>% slice(1:5)%>% datatable(options=list(scrollX=TRUE))})
     
     # still not working yet
     output$downloadData <-downloadHandler(
@@ -266,48 +284,23 @@ server <- function(input, output,session) {
   # 02. DATA VISUALIZATION
   
   # 03. MODEL - TAB: DATA PREPARATION
-  currentCleanedDf <- reactiveVal()
-  modelDf <- reactiveVal(NULL)
-  
-  observeEvent(cleanedData(), {
-    currentCleanedDf(cleanedData())
-    modelDf(data_cleaned())
-  })
-  
-  observeEvent(cleanedData(), {
-    if (!is.null(cleanedData())) {
-      modelDf(cleanedData())
-    } else if (!is.null(updateDf())) {
-      modelDf(updateDf())
-    } else {
-      modelDf(data())
-    }
-  })
   
   # Choosing Y Var
   observe({
-    if(!is.null(cleanedData())) {
-      updateSelectInput(session, "YCol", label="choose your column", choices=names(cleanedData()), selected=names(cleanedData())[1])
-    } else if (!is.null(updateDf())){
-      updateSelectInput(session, "YCol", label="choose your column", choices=names(updateDf()), selected=names(updateDf())[1])
-    } else {
-      updateSelectInput(session, "YCol", label="choose your column", choices=names(data()), selected=names(data())[1])
-    }
+    updateSelectInput(session, "YCol", label="choose your column", choices=names(cleanedData()), selected=names(cleanedData())[1])
   })
   # Choosing X Var
   observe({
-    if(!is.null(cleanedData())) {
-      updateSelectInput(session, "XCols", label="choose your column", choices=names(cleanedData()), selected=names(cleanedData())[1])
-    } else if (!is.null(updateDf())){
-      updateSelectInput(session, "XCols", label="choose your column", choices=names(updateDf()), selected=names(updateDf())[1])
-    } else {
-      updateSelectInput(session, "XCols", label="choose your column", choices=names(data()), selected=names(data())[1])
-    }
+    updateSelectInput(session, "XCols", label="choose your column", choices=names(cleanedData()), selected=names(cleanedData())[1])
   })
   
-  formula <- reactiveVal()
+  # input for training model classes
+  formula <- reactiveVal() # for the model
+  formula_asstring <- reactiveVal() # to show in UI
   train_data <- reactiveVal()
   test_data <- reactiveVal()
+  label_column <- reactiveVal()
+  
   
   # Making Formula
   observeEvent(input$PickVars, {
@@ -318,8 +311,10 @@ server <- function(input, output,session) {
     formula_str <- paste(y_var, "~", paste(x_vars, collapse = " + "))
     
     # Store the formula
-    formula((formula_str))
-    print(formula)
+    formula_asstring((formula_str))
+    formula((as.formula(formula_str)))
+    # store variable Y
+    label_column(y_var)
     output$formulasummary <- renderPrint({formula_str})
     
     
@@ -327,25 +322,18 @@ server <- function(input, output,session) {
   
   # Split Data
   observeEvent(input$TrainTestButton, {
-    if (!is.null(cleanedData())) {
-      modelDf <- cleanedData()
-    } else if (!is.null(updateDf())) {
-      modelDf <- updateDf()
-    } else {
-      modelDf <- data()
-    }
     split_ratio <- as.numeric(strsplit(input$TrainTestSplit, "-")[[1]]) / 100
     
     
     if (input$TrainTestSplit == "70-30") {
-      train <- modelDf[1:round(split_ratio[1] * nrow(modelDf)), ]
-      test <- modelDf[(round(split_ratio[1] * nrow(modelDf)) + 1):nrow(modelDf), ]
+      train <- cleanedData()[1:round(split_ratio[1] * nrow(cleanedData())), ]
+      test <- cleanedData()[(round(split_ratio[1] * nrow(cleanedData())) + 1):nrow(cleanedData()), ]
     } else if (input$TrainTestSplit == "80-20") {
-      train <- modelDf[1:round(split_ratio[1] * nrow(modelDf)), ]
-      test <- modelDf[(round(split_ratio[1] * nrow(modelDf)) + 1):nrow(modelDf), ]
+      train <- cleanedData()[1:round(split_ratio[1] * nrow(cleanedData())), ]
+      test <- cleanedData()[(round(split_ratio[1] * nrow(cleanedData())) + 1):nrow(cleanedData()), ]
     } else if (input$TrainTestSplit == "90-10") {
-      train <- modelDf[1:round(split_ratio[1] * nrow(modelDf)), ]
-      test <- modelDf[(round(split_ratio[1] * nrow(modelDf)) + 1):nrow(modelDf), ]
+      train <- cleanedData()[1:round(split_ratio[1] * nrow(cleanedData())), ]
+      test <- cleanedData()[(round(split_ratio[1] * nrow(cleanedData())) + 1):nrow(cleanedData()), ]
     }
     train_data(train)
     test_data(test)
@@ -354,6 +342,74 @@ server <- function(input, output,session) {
       cat("Test Data Dimensions: ", dim(test)[1], " rows, ", dim(test)[2], " columns\n")
     })
   })
+  
+  # input for training model classes
+  modelType <- reactiveVal()
+  method <- reactiveVal()
+  num_trees <- reactiveVal()
+  mtry <- reactiveVal()
+  min_node_size <- reactiveVal()
+  
+  # variables for the classes
+  my_trainer <- reactiveVal()
+  result <- reactiveVal()
+  
+  # 03. MODEL - TAB: SELECT MODEL
+  output$summaryParameters <- renderPrint({
+    # from previous data Preps
+    cat("== Data Preparation Summary == \n \n")
+    cat("* Train Data Dimensions: ", dim(train_data())[1], " rows, ", dim(train_data())[2], " columns\n")
+    cat("* Test Data Dimensions: ", dim(test_data())[1], " rows, ", dim(test_data())[2], " columns\n")
+    cat("* Formula:", formula_asstring(),"\n \n")
+    
+    # parameters summary
+    cat("== Parameters Summary == \n \n")
+    model_type <- input$model_type
+    modelType(model_type)
+    cat("* Model Type:", model_type," \n")
+    
+    trees_method <- input$trees_method
+    method(trees_method)
+    cat("* Trees Method:", trees_method," \n")
+    
+    numtrees <- input$numtrees
+    num_trees(numtrees)
+    cat("* Number of Trees:", numtrees," \n")
+    
+    m_try <- input$m_try
+    mtry(m_try)
+    cat("* Number of Vars to split:", m_try," \n")
+    
+    minnodesize <- input$minnodesize
+    min_node_size(minnodesize)
+    cat("* Node Size:", minnodesize," \n")
+  })
+  
+  observeEvent(input$seeModelSummary, {
+    my_trainer_shiny <- my_trainer()
+    result_shiny <- result()
+    
+    if (input$model_type == "Classification"){
+      my_trainer_shiny <- Trainer_classification$new(train_data(), test_data(), label_column())
+      result_shiny <- my_trainer_shiny$create_random_forest(train_data(),test_data(),
+                                                            formula = formula(),method = method(),
+                                                            num_trees = num_trees(),importance = "impurity",
+                                                            mtry = mtry(),min_node_size = min_node_size())
+    } else {
+      my_trainer_shiny <- Trainer_regression$new(train_data(), test_data(), label_column())
+      result_shiny <- my_trainer_shiny$create_random_forest(train_data(),test_data(),
+                                                            formula = formula(),method = method(),
+                                                            num_trees = num_trees(),mtry = mtry(),
+                                                            min_node_size = min_node_size())
+      
+    }
+    my_trainer(my_trainer_shiny)
+    result(result_shiny)
+    output$summaryModel <- renderPrint({summary(result())}) 
+  })
+  
+  
+  
 }
 
 shinyApp(ui, server)
