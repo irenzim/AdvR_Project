@@ -166,9 +166,35 @@ ui <- dashboardPage(
                 )
               )
       ),
-      tabItem(tabName= "metrics")
-    )
-  ))
+      ## 03. MODEL - TAB: MODEL METRICS
+      tabItem(tabName= "metrics",
+              sidebarLayout(
+                sidebarPanel(
+                  actionButton("GenerateMetrics", "Generate Metrics")
+                ),
+                mainPanel(
+                  tabsetPanel(
+                    tabPanel("Metrics",id = "metrics_tab",
+                             fluidRow( # summary of the metrics
+                               column(width = 6,verbatimTextOutput("metricsummary1")),
+                               column(width = 6,verbatimTextOutput("metricsummary2"))
+                             ),
+                             fluidRow( # PLOTS
+                               column(width = 6,plotOutput("metricplot1")),
+                               column(width = 6,plotOutput("metricplot2"))
+                             ),
+                             fluidRow(
+                               column(width = 6,plotOutput("metricplot3")),
+                               column(width = 6,plotOutput("metricplot4"))
+                             ),
+                             fluidRow(
+                               column(width = 6,plotOutput("metricplot5")),
+                               column(width = 6,plotOutput("metricplot6"))
+                             )
+                    )
+                  ))
+              ))
+    )))
 
 server <- function(input, output,session) {
   
@@ -283,6 +309,10 @@ server <- function(input, output,session) {
   })
   # 02. DATA VISUALIZATION
   
+  
+  
+  
+  
   # 03. MODEL - TAB: DATA PREPARATION
   
   # Choosing Y Var
@@ -354,6 +384,7 @@ server <- function(input, output,session) {
   my_trainer <- reactiveVal()
   result <- reactiveVal()
   
+  
   # 03. MODEL - TAB: SELECT MODEL
   output$summaryParameters <- renderPrint({
     # from previous data Preps
@@ -408,6 +439,58 @@ server <- function(input, output,session) {
     output$summaryModel <- renderPrint({summary(result())}) 
   })
   
+  # 03. MODEL - TAB: MODEL METRICS
+  observeEvent(input$GenerateMetrics, {
+    
+    if (input$model_type == "Classification"){
+      pred <- result()$predicted
+      # metricsummary1 & metricsummary2
+      metrics_specific <- my_trainer()$calc_balanced_metrics(my_trainer()$labels,pred)
+      metrics_simple <- my_trainer()$calc_metrics(my_trainer()$labels, pred) 
+      
+      # plot metrics & learning curve
+      learning_curve <- my_trainer()$calculate_learning_curve(my_trainer()$train_data, my_trainer()$test_data, my_trainer()$label_column)
+      learning_curve_plot <- my_trainer()$plot_metrics(learning_curve)
+      plot_metrics <- my_trainer()$plot_metrics(learning_curve, train_sizes = seq(0.01, 0.9, by = 0.05))
+      
+      # plot probs
+      plot_prob <- my_trainer()$plot_probs(result()$probs,my_trainer()$label_column)
+      
+      
+      # output metricsummary1 & metricsummary2
+      output$metricsummary1 <- renderPrint({
+        cat("Metrics Specific: \n")
+        cat("* precision_pos: ", metrics_specific$precision_pos," \n")
+        cat("* recall_pos: ", metrics_specific$recall_pos," \n")
+        cat("* f1_pos: ", metrics_specific$f1_pos," \n")
+        cat("* precision_neg: ", metrics_specific$precision_neg," \n")
+        cat("* f1_neg: ", metrics_specific$f1_neg," \n")
+        cat("* balanced_precision: ", metrics_specific$balanced_precision," \n")
+        cat("* balanced_recall: ", metrics_specific$balanced_recall," \n")
+        cat("* balanced_f1: ", metrics_specific$balanced_f1," \n")
+      })
+      output$metricsummary2 <- renderPrint({
+        cat("Metrics Simple: \n")
+        cat("* accuracy: ", metrics_simple$accuracy," \n")
+        cat("* recall: ", metrics_simple$recall," \n")
+        cat("* precision: ", metrics_simple$precision," \n")
+        cat("* f1: ", metrics_simple$f1," \n")
+      })
+      # output plots
+      output$metricplot1 <- renderPlot({plot_metrics$acc}) # plot metrics acc
+      output$metricplot2 <- renderPlot({plot_metrics$prec}) # plot metrics prec
+      output$metricplot3 <- renderPlot({plot_metrics$rec}) # plot metrics rec
+      output$metricplot4 <- renderPlot({plot_metrics$f1}) # plot metrics f1
+      output$metricplot5 <- renderPlot({learning_curve_plot}) # plot learning curve
+      output$metricplot6 <- renderPlot({plot_prob}) # plot probs
+      
+    } else {
+      # code
+      
+    }
+    
+    #  
+  })
   
   
 }

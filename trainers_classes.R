@@ -83,7 +83,7 @@ Trainer_classification <- R6Class(
                        type="prob")[, "Yes"]
       
       predicted <-predict(model,
-                          medical.test %>% 
+                          test_data %>% 
                             select(!!self$dependent_vars))
       
       return(list(model=model, probs=probs, predicted=predicted))
