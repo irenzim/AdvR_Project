@@ -169,8 +169,8 @@ ui <- dashboardPage(
       ## 03. MODEL - TAB: MODEL METRICS
       tabItem(tabName= "metrics",
               sidebarLayout(
-                sidebarPanel(
-                  actionButton("GenerateMetrics", "Generate Metrics")
+                sidebarPanel(width = 3,
+                             actionButton("GenerateMetrics", "Generate Metrics")
                 ),
                 mainPanel(
                   tabsetPanel(
@@ -444,16 +444,16 @@ server <- function(input, output,session) {
     
     if (input$model_type == "Classification"){
       pred <- result()$predicted
-      # metricsummary1 & metricsummary2
+      # metric specific [metricsummary1] & metric simple [metricsummary2]
       metrics_specific <- my_trainer()$calc_balanced_metrics(my_trainer()$labels,pred)
       metrics_simple <- my_trainer()$calc_metrics(my_trainer()$labels, pred) 
       
-      # plot metrics & learning curve
+      # plot metrics [metricplot 1-4] & learning curve [metricplot5]
       learning_curve <- my_trainer()$calculate_learning_curve(my_trainer()$train_data, my_trainer()$test_data, my_trainer()$label_column)
       learning_curve_plot <- my_trainer()$plot_metrics(learning_curve)
       plot_metrics <- my_trainer()$plot_metrics(learning_curve, train_sizes = seq(0.01, 0.9, by = 0.05))
       
-      # plot probs
+      # plot probs [metricplot6]
       plot_prob <- my_trainer()$plot_probs(result()$probs,my_trainer()$label_column)
       
       
@@ -485,8 +485,40 @@ server <- function(input, output,session) {
       output$metricplot6 <- renderPlot({plot_prob}) # plot probs
       
     } else {
-      # code
+      # metrics calculation [metricsummary 1 & 2]
+      metrics_calculation <- my_trainer()$calc_metrics(my_trainer()$model)
       
+      # plot metrics [metric plot 1 - 4]
+      metrics <- my_trainer()$calculate_learning_curve(my_trainer()$train_data, my_trainer$test_data)
+      plot_metrics <- my_trainer()$plot_metrics(metrics)
+      
+      # plot actual vs predicted [metric plot 5 & 6]
+      plots_ap <- my_trainer()$actual_vs_predicted(my_trainer()$predictions)
+      ap <- plots_ap$actual_predicted
+      residuals <- plots_ap$resiudals_plot
+      
+      # output metricsummary1 & metricsummary2
+      output$metricsummary1 <- renderPrint({
+        cat("Metrics Calculation - Train: \n")
+        cat("* train_mse: ", metrics_calculation$train_mse," \n")
+        cat("* train_rmse: ", metrics_calculation$train_rmse," \n")
+        cat("* train_mae: ", metrics_calculation$train_mae," \n")
+        cat("* train_rsquared: ", metrics_calculation$train_rsquared," \n")
+      })
+      output$metricsummary2 <- renderPrint({
+        cat("Metrics Calculation - Test: \n")
+        cat("* test_mse: ", metrics_calculation$test_mse," \n")
+        cat("* test_rmse: ", metrics_calculation$test_rmse," \n")
+        cat("* test_mae: ", metrics_calculation$test_mae," \n")
+        cat("* test_rsquared: ", metrics_calculation$test_rsquared," \n")
+      })
+      # output plots
+      output$metricplot1 <- renderPlot({plot_metrics$p_mse}) # plot metrics acc
+      output$metricplot2 <- renderPlot({plot_metrics$p_mae}) # plot metrics prec
+      output$metricplot3 <- renderPlot({plot_metrics$p_rmse}) # plot metrics rec
+      output$metricplot4 <- renderPlot({plot_metrics$p_rsquared}) # plot metrics f1
+      output$metricplot5 <- renderPlot({ap}) # plot actual-predicted
+      output$metricplot6 <- renderPlot({residuals}) # plot residuals
     }
     
     #  

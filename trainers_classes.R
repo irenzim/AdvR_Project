@@ -377,7 +377,7 @@ Trainer_regression <- R6Class(
                                 replace = FALSE)
         training_data <- train_data[train_idx, ]
         
-        model <- train(model1.formula,
+        model <- train(self$formula,
                        data=training_data, 
                        method = "ranger",
                        tuneGrid = self$tune_grid)
