@@ -700,7 +700,7 @@ server <- function(input, output,session) {
       plot_metrics <- my_trainer()$plot_metrics(learning_curve, train_sizes = seq(0.01, 0.9, by = 0.05))
       
       # plot probs [metricplot6]
-      plot_prob <- my_trainer()$plot_probs(result()$probs,my_trainer()$label_column)
+      plot_prob <- my_trainer()$plot_probs(result()$probs,my_trainer()$labels)
       
       
       # output metricsummary1 & metricsummary2
