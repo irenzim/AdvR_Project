@@ -1,0 +1,25 @@
+Package: MyFirstPackage
+Title: This package makes training and testing a Random Forest algorithm easier for the user. It automates a lot of operations.
+Version: 0.0.0.9000
+Authors@R: 
+    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: Automatic model training.
+License: GPL-2
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.1
+Imports:
+  R6,
+  ranger,
+  caret,
+  dplyr,
+  tibble,
+  readr,
+  ggplot2,
+  tidyr,
+  pROC,
+  magrittr,
+  gridExtra,
+  gbm,
+  Metrics
