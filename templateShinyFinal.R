@@ -119,7 +119,7 @@ ui <- dashboardPage(
                 mainPanel(tabsetPanel(
                   tabPanel("Plots", id = 'varPlots', 
                            fluidRow(
-                             column(width = 12,plotOutput("var_plot"))
+                             column(width = 8, plotOutput("var_plot"))
                            ))
                 )))),
       
@@ -362,7 +362,7 @@ server <- function(input, output,session) {
     
     num_plot_types <- c('Density', 'Histogram', 'Empirical CDF')
     int_plot_types <- c('Histogram', 'Empirical CDF')
-    cat_plot_types <- c('Barplot', 'Piechart', 'Dotplot')
+    cat_plot_types <- c('Barplot', 'Piechart')
     
     if (class(cleanedData()[[plot_col]]) == 'numeric'){
       choices = num_plot_types} 
@@ -396,17 +396,28 @@ server <- function(input, output,session) {
       plot <- 
         
         ggplot(cleanedData(), aes(x = cleanedData()[[vis_col]])) +
-        geom_histogram(fill = "steelblue", color = "white", bins = 30) +
-        labs(title = paste("Distribution of", vis_col), x = vis_col, y = "Frequency")
-      
-      
+        geom_histogram(fill = "#6BCED6", color = "white", bins = 30) +
+        labs(title = paste("Distribution of", vis_col), x = vis_col, y = "Frequency")+ 
+        theme(
+          plot.title = element_text(hjust = 0.5, size=18 , face = 'bold'),
+          axis.title.x = element_text(size=14),
+          axis.title.y = element_text(size=14)
+        )
+        
       output$freq_plot <- renderPlot({plot})
       
     } else if (how_vis == 'Empirical CDF') {
       
       plot <- 
         ggplot(cleanedData(), aes(x = cleanedData()[[vis_col]])) + 
-        stat_ecdf()
+        stat_ecdf() +
+        labs(title = paste("Cumulative Distribution of", vis_col), x = vis_col, y = "Cumulative Distribution") +
+        theme(
+          plot.title = element_text(hjust = 0.5, size=18 , face = 'bold'),
+          axis.title.x = element_text(size=14),
+          axis.title.y = element_text(size=14)
+        )
+        
       
       output$freq_plot <- renderPlot({plot})
       
@@ -414,8 +425,13 @@ server <- function(input, output,session) {
       
       plot <- 
         ggplot(cleanedData(), aes(x = cleanedData()[[vis_col]])) +
-        geom_density(fill = "steelblue", alpha = 0.5) +
-        labs(title = paste("Density Plot of", vis_col), x = vis_col, y = "Density")
+        geom_density(fill = "#6BCED6", alpha = 0.5) +
+        labs(title = paste("Density Plot of", vis_col), x = vis_col, y = "Density") + 
+        theme(
+          plot.title = element_text(hjust = 0.5, size=18 , face = 'bold'),
+          axis.title.x = element_text(size=14),
+          axis.title.y = element_text(size=14)
+        )
       
       output$freq_plot <- renderPlot({plot})
       
@@ -423,8 +439,15 @@ server <- function(input, output,session) {
       
       plot <- 
         ggplot(cleanedData(), aes(x = cleanedData()[[vis_col]])) +
-        geom_bar(fill = "steelblue", color = "white") +
-        labs(title = paste("Distribution of", vis_col), x = vis_col, y = "Count")
+        geom_bar(fill = "#6BCED6", color = "white", width = 0.5) +
+        ggtitle(paste("Distribution of", vis_col)) +
+        geom_text(stat='count', aes(label=..count..), vjust= 2.5, size = 4) + 
+        labs(x = vis_col, y = "Count") +  
+        theme(
+          plot.title = element_text(hjust = 0.5, size=18 , face = 'bold'),
+          axis.title.x = element_text(size=14),
+          axis.title.y = element_text(size=14)
+        )
       
       output$freq_plot <- renderPlot({plot})
       
@@ -436,20 +459,19 @@ server <- function(input, output,session) {
         
         ggplot(data_summary, aes(x = "", y = value, fill = label)) +
         geom_bar(stat = "identity", width = 1) +
+        geom_label(aes(label = value), color = 'white', 
+                    position = position_stack(vjust = 0.5)) + 
         coord_polar(theta = "y") +
         labs(title = paste("Pie Chart of", vis_col), fill = NULL) +
-        theme_void()
+        theme(
+          plot.title = element_text(hjust = 0.5, size=18 , face = 'bold'),
+          axis.title.x = element_text(size=14),
+          axis.title.y = element_text(size=14)
+        )
       
       output$freq_plot <- renderPlot({plot})
       
-    } else if (how_vis == 'Dotplot'){
-      
-      plot <- 
-        ggplot(cleanedData(), aes(x = cleanedData()[[vis_col]])) +
-        geom_dotplot()
-      
-      output$freq_plot <- renderPlot({plot})
-    } 
+    }  
     
   })
   
@@ -487,7 +509,15 @@ server <- function(input, output,session) {
         type_Y %in% c('integer', 'numeric')){
       
       
-      plot <- ggplot(cleanedData(), aes(x = cleanedData()[[vis_colX]], y = cleanedData()[[vis_colY]])) + geom_point(size = 2, alpha = 0.6)
+      plot <- 
+        ggplot(cleanedData(), aes(x = cleanedData()[[vis_colX]], y = cleanedData()[[vis_colY]])) + 
+        geom_point(size = 2, alpha = 0.6) + 
+        labs(x = vis_colX, y = vis_colY) +
+        theme(
+          axis.title.x = element_text(size=14, face = 'bold'),
+          axis.title.y = element_text(size=14, face = 'bold')
+        )
+        
       
       output$var_plot <- renderPlot({plot})
       
@@ -496,7 +526,14 @@ server <- function(input, output,session) {
     else if (type_X %in% c('factor', 'integer') & 
              type_Y %in% c('integer', 'numeric')){
       
-      plot <- ggplot(cleanedData(), aes(x = cleanedData()[[vis_colX]], y = cleanedData()[[vis_colY]])) + geom_bar(stat = 'identity')
+      plot <- 
+        ggplot(cleanedData(), aes(x = cleanedData()[[vis_colX]], y = cleanedData()[[vis_colY]])) + 
+        geom_bar(stat = 'identity') + 
+        labs(x = vis_colX, y = vis_colY) +
+        theme(
+          axis.title.x = element_text(size=14, face = 'bold'),
+          axis.title.y = element_text(size=14, face = 'bold')
+        )
       
       output$var_plot <- renderPlot({plot})
       
@@ -504,7 +541,13 @@ server <- function(input, output,session) {
     else if (type_X == 'factor' &
              type_Y == 'factor'){
       
-      plot <- ggplot(cleanedData(), aes(x = cleanedData()[[vis_colX]], y = cleanedData()[[vis_colY]])) + geom_count()
+      plot <- ggplot(cleanedData(), aes(x = cleanedData()[[vis_colX]], y = cleanedData()[[vis_colY]])) + 
+        geom_count() + 
+        labs(x = vis_colX, y = vis_colY) +
+        theme(
+          axis.title.x = element_text(size=14, face = 'bold'),
+          axis.title.y = element_text(size=14, face = 'bold')
+        )
       
       output$var_plot <- renderPlot({plot})
     } 
@@ -657,7 +700,7 @@ server <- function(input, output,session) {
       plot_metrics <- my_trainer()$plot_metrics(learning_curve, train_sizes = seq(0.01, 0.9, by = 0.05))
       
       # plot probs [metricplot6]
-      plot_prob <- my_trainer()$plot_probs(result()$probs,my_trainer()$label_column)
+      plot_prob <- my_trainer()$plot_probs(result()$probs,my_trainer()$labels)
       
       
       # output metricsummary1 & metricsummary2

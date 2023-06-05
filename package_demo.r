@@ -2,7 +2,7 @@
 # ---------------------- Set Up Environment ---------------------- 
 if (!require('pacman')) install.packages('pacman')
 pacman::p_load(R6, ranger, caret, dplyr, tibble, readr, ggplot2, tidyr, pROC, magrittr,gridExtra,gbm,Metrics,Rcpp)
-setwd("C:/Users/pearly/Desktop/University Materials/02. summer semester 2023/Adv.R/projects_training metric/Final Submission")
+setwd("/Volumes/HD/GitHub/AdvR_Project")
 
 # ---------------------- Package, Data, Rcpp ---------------------- 
 install.packages("autoforest.tar.gz", repos = NULL, type = "source")
@@ -16,6 +16,12 @@ print(col_names(medical.train))
 print(df_dim(medical.train))
 
 # ------------------------- Demo for Package ------------------------- 
+
+
+### Vectorization in functions ###
+apply_log_transform(medical.test, 'U_HRSLY')
+
+calculate_numeric_column_means(medical.test)
 
 ### CLASSIFICATION ###
 
@@ -42,8 +48,8 @@ p
 metrics <- calc_metrics_classification(trainer_classification$labels, results$predicted)
 metrics
 
-?calc_balanced_metrics
-metrics_balanced <- calc_balanced_metrics_classification(trainer_classification$labels, results$predicted)
+?calc_balanced_metrics_classification
+metrics_balanced <- calc_balanced_metrics_classification(c(trainer_classification$labels), c(results$predicted))
 metrics_balanced
 
 ?calculate_learning_curve
